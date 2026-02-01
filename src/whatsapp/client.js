@@ -15,7 +15,7 @@ export const initWhatsApp = () => {
         ...whatsappConfig,
         puppeteer: {
             headless: true,
-            executablePath: '/usr/bin/chromium-browser', // 👈 path en Railway
+            executablePath: '/usr/bin/chromium', // 👈 path en Railway
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
