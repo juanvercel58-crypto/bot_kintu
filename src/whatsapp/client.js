@@ -1,19 +1,21 @@
-import { Client } from 'whatsapp-web.js'
-import { whatsappConfig } from '../config/whatsapp.js'
-import { registerEvents } from './events.js'
-import { logger } from '../utils/logger.js'
+import { Client } from 'whatsapp-web.js';
+import { whatsappConfig } from '../config/whatsapp.js';
+import { registerEvents } from './events.js';
+import { logger } from '../utils/logger.js';
+//import puppeteer from 'puppeteer-core';
 
-let client
+let client;
 
 export const initWhatsApp = () => {
-    if (client) return client
+    if (client) return client;
 
-    logger.info('🚀 Initializing WhatsApp client...')
+    logger.info('🚀 Initializing WhatsApp client...');
 
-    const config = {
+    client = new Client({
         ...whatsappConfig,
         puppeteer: {
-            headless: true, // headless obligatorio
+            headless: true,
+            executablePath: '/usr/bin/chromium-browser', // 👈 path en Railway
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -25,20 +27,14 @@ export const initWhatsApp = () => {
                 '--disable-gpu'
             ]
         }
-    };
+    });
 
-    client = new Client(config)
-
-    registerEvents(client)
-
-    client.initialize()
-
-    return client
-}
+    registerEvents(client);
+    client.initialize();
+    return client;
+};
 
 export const getWhatsAppClient = () => {
-    if (!client) {
-        throw new Error('WhatsApp client not initialized')
-    }
-    return client
-}
+    if (!client) throw new Error('WhatsApp client not initialized');
+    return client;
+};
