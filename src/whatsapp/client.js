@@ -10,7 +10,24 @@ export const initWhatsApp = () => {
 
     logger.info('🚀 Initializing WhatsApp client...')
 
-    client = new Client(whatsappConfig)
+    const config = {
+        ...whatsappConfig,
+        puppeteer: {
+            headless: true, // headless obligatorio
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-gpu'
+            ]
+        }
+    };
+
+    client = new Client(config)
 
     registerEvents(client)
 
