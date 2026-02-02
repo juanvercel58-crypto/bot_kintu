@@ -1,11 +1,31 @@
 import express from 'express'
 import path from 'path'
+import cors from 'cors'
 import { fileURLToPath } from 'url'
 
 import healthRoutes from './api/routes/health.routes.js'
 import whatsappRoutes from './api/routes/whatsapp.routes.js'
 
 const app = express()
+
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://dashboard.kintutravelexpeditions.com',
+    'https://bot.kintutravelexpeditions.com'
+]
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true) // Postman, curl, server-to-server
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true)
+        }
+        return callback(new Error('Not allowed by CORS'))
+    },
+    credentials: true
+}))
 
 // Middlewares base
 app.use(express.json())
