@@ -26,16 +26,26 @@ export const registerEvents = (client) => {
     })
 
     client.on('message', async (message) => {
-        if (message.fromMe) return
-        if (!message.body) return
+        try {
+            logger.info(`=======================================`)
+            logger.info(`📩 MESSAGE EVENT FIRED`)
+            logger.info(`${message.from}: ${message.body}`)
 
-        const contact = await message.getContact()
+            if (message.fromMe) return
+            if (!message.body) return
 
-        await handleIncomingMessage({
-            phone: message.from,
-            text: message.body,
-            message,
-            name: contact.pushname || contact.name || null
-        })
+            const contact = await message.getContact()
+
+            await handleIncomingMessage({
+                phone: message.from,
+                text: message.body,
+                message,
+                name: contact.pushname || contact.name || null
+            })
+        } catch (err) {
+            logger.error('❌ Error handling incoming message')
+            logger.error(err)
+        }
     })
+
 }
