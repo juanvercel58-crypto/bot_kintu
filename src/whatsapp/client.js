@@ -1,31 +1,33 @@
-import { Client } from 'whatsapp-web.js';
+import pkg from 'whatsapp-web.js';
 import { whatsappConfig } from '../config/whatsapp.js';
 import { registerEvents } from './events.js';
 import { logger } from '../utils/logger.js';
-//import puppeteer from 'puppeteer-core';
 
 let client;
 
 export const initWhatsApp = () => {
+
+    const { Client, LocalAuth } = pkg;
+
     if (client) return client;
 
     logger.info('🚀 Initializing WhatsApp client...');
 
     client = new Client({
         ...whatsappConfig,
+        authStrategy: new LocalAuth({
+            dataPath: '.wwebjs_auth'
+        }),
         puppeteer: {
             headless: true,
-            executablePath: '/usr/bin/chromium', // 👈 path en Railway
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
-                '--no-zygote',
-                '--single-process',
-                '--disable-gpu'
-            ]
+                '--no-zygote'
+            ]  
         }
     });
 

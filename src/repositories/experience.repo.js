@@ -16,7 +16,7 @@ export const getPublishedExperiences = async () => {
             currency
         `)
         .eq('published', true)
-        .order('created_at', { ascending: true })
+        .order('display_order', { ascending: true })
 
     if (error) throw error
     return data
