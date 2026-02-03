@@ -28,7 +28,8 @@ export const initWhatsApp = () => {
                 '--no-first-run',
                 '--no-zygote'
             ]  
-        }
+        },
+        restartOnAuthFail: false
     });
 
     registerEvents(client);
