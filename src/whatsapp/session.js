@@ -1,13 +1,16 @@
-let sessionStatus = 'INIT'
+let sessionState = {
+    status: 'INIT', // INIT | QR | AUTHENTICATED | READY | DISCONNECTED | AUTH_FAILURE
+    updatedAt: Date.now()
+}
 
 export const setSessionStatus = (status) => {
-    sessionStatus = status
+    sessionState.status = status
 }
 
 export const getSessionStatus = () => {
-    return sessionStatus
+    return sessionState
 }
 
 export const isSessionReady = () => {
-    return sessionStatus === 'READY'
+    return sessionState.status === 'READY'
 }
