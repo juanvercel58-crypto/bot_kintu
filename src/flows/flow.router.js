@@ -21,6 +21,8 @@ export const resolveNextStep = (currentStep, text) => {
     // 📌 DETALLE → INICIAR RESERVA
     if (currentStep === STEPS.EXPERIENCE_DETAIL) {
         if (text === '1') return STEPS.BOOKING_START
+        if (text === '2') return STEPS.EXPERIENCES_LIST
+        if (text === '3') return STEPS.HANDOFF
         return STEPS.EXPERIENCE_DETAIL
     }
 
