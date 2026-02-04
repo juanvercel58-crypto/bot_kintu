@@ -8,8 +8,6 @@ let eventsRegistered = false
 
 export const registerEvents = (client) => {
 
-    console.log(client);
-
     if (eventsRegistered) {
         logger.warn('⚠️ WhatsApp events already registered, skipping...')
         return
@@ -25,6 +23,7 @@ export const registerEvents = (client) => {
         if (last === 'READY') {
             logger.error('❌ Session closed from phone (detected via QR)')
             await forceLogout();
+            setSessionStatus('QR')
         }
         saveQr(qr)
         setSessionStatus('QR')
@@ -48,17 +47,16 @@ export const registerEvents = (client) => {
         if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
             logger.error('❌ WhatsApp session unpaired (logout detected)')
             setSessionStatus('AUTH_FAILURE')
-
             forceLogout(client)
         }
     })
 
     // ❌ Sesión inválida / cerrada desde el celular
-    client.on('auth_failure', (msg) => {
+    client.on('auth_failure', async (msg) => {
         logger.error(`❌ Auth failure: ${msg}`)
         setSessionStatus('AUTH_FAILURE')
         try {
-            client.destroy()
+            await client.destroy()
             logger.warn('🧹 Client destroyed after auth failure')
         } catch (e) {
             logger.error('Error destroying client after auth failure', e)
