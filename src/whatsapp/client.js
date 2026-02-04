@@ -29,6 +29,7 @@ export const initWhatsApp = () => {
                 '--no-zygote'
             ]  
         },
+        protocolTimeout: 120000,
         restartOnAuthFail: false
     });
 

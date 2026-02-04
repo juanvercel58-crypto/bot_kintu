@@ -80,12 +80,12 @@ export const registerEvents = (client) => {
         try {
             logger.info(`📩 ${message.from}: "${message.body}"`)
 
-            const contact = await message.getContact()
+            const name = message._data?.notifyName || null
 
             await handleIncomingMessage({
                 phone: message.from,
                 text: message.body,
-                name: contact.pushname || contact.name || null
+                name: name || null
             })
 
         } catch (err) {
