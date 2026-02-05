@@ -10,50 +10,56 @@ import { isGreetingIntent } from './flow.intent.js'
 const normalizeText = (text = '') => text.toLowerCase().trim()
 
 export const handleIncomingMessage = async ({ phone, text, name }) => {
-    try {
-        const client = getWhatsAppClient()
-        const normalizedText = normalizeText(text)
+    const client = getWhatsAppClient()
+    const normalizedText = normalizeText(text)
 
+    let response = null
+    let nextStep = null
+
+    try {
         let user = await getUser(phone)
 
         // 🆕 Usuario nuevo
         if (!user) {
             user = await createUser({ phone, step: STEPS.MENU, name })
-            await client.sendMessage(phone, MESSAGES.WELCOME(name))
-            await client.sendMessage(phone, MESSAGES.MENU)
-            return
+
+            response = `${MESSAGES.WELCOME(name)}\n\n${MESSAGES.MENU}`
+            nextStep = STEPS.MENU
         }
 
-        // 👋 Saludo global (no rompe flujos)
-        if (isGreetingIntent(normalizedText)) {
-            await updateUserStep(phone, STEPS.MENU)
-            await client.sendMessage(phone, MESSAGES.WELCOME(user.name))
-            await client.sendMessage(phone, MESSAGES.MENU)
-            return
+        // 👋 Saludo global
+        else if (isGreetingIntent(normalizedText)) {
+            response = `${MESSAGES.WELCOME(user.name)}\n\n${MESSAGES.MENU}`
+            nextStep = STEPS.MENU
         }
 
-        // 🔁 Resolver handler a ejecutar
-        const nextStep = resolveNextStep(user.step, normalizedText)
-        const handler = stepHandlers[nextStep] || stepHandlers.DEFAULT
+        // 🔁 Flujo normal
+        else {
+            nextStep = resolveNextStep(user.step, normalizedText)
+            const handler = stepHandlers[nextStep] || stepHandlers.DEFAULT
 
-        const { response, forcedStep } = await handler({
-            user,
-            phone,
-            text: normalizedText,
-            client
-        })
+            const result = await handler({
+                user,
+                phone,
+                text: normalizedText
+            })
 
-        const finalStep = forcedStep || nextStep
-
-        if (finalStep !== user.step) {
-            await updateUserStep(phone, finalStep)
+            response = result?.response || null
+            nextStep = result?.forcedStep || nextStep
         }
 
+        // 🔄 Persistir estado
+        if (nextStep && nextStep !== user?.step) {
+            await updateUserStep(phone, nextStep)
+        }
+
+        // 📤 Envío ÚNICO
         if (response) {
             await client.sendMessage(phone, response)
         }
 
-        logger.info(`FLOW ${user.step} → ${finalStep} | "${normalizedText}"`)
+        logger.info(`FLOW ${user?.step || 'NEW'} → ${nextStep} | "${normalizedText}"`)
+
     } catch (error) {
         logger.error(`❌ Flow engine error: ${error.message}`)
     }

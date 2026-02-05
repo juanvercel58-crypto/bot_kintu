@@ -1,6 +1,33 @@
 import { ENV } from '../config/env.js'
 import { getWhatsAppClient } from '../whatsapp/client.js'
 
+export const notifyAdvisorbyClient = async (user) => {
+    const client = getWhatsAppClient();
+    const advisorPhone = ENV.WHATSAPP.ADVISOR;
+    if (!advisorPhone) {
+        console.warn('⚠️ ADVISOR_WHATSAPP no definido')
+        return;
+    }
+
+    const isRegistered = await client.isRegisteredUser(advisorPhone)
+
+    if (!isRegistered) {
+        console.warn(`⚠️ Asesor no registrado en WhatsApp: ${advisorPhone}`)
+        return
+    }
+    
+    const message = `
+📢 *Un cliente te está esperando*
+
+👤 Cliente: ${user.name || 'Sin nombre'}
+📞 Teléfono: ${user.phone}
+
+    `.trim();
+
+    await client.sendMessage(advisorPhone, message)
+
+}
+
 export const notifyAdvisorNewBooking = async (booking, user, experience) => {
     const client = getWhatsAppClient()
     const advisorPhone = ENV.WHATSAPP.ADVISOR;

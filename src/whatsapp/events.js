@@ -1,10 +1,12 @@
-import { getLastSessionStatus, setSessionStatus } from './session.js'
+import { setSessionStatus } from './session.js'
 import { saveQr } from './qr.js'
 import { logger } from '../utils/logger.js'
 import { handleIncomingMessage } from '../flows/flow.engine.js'
-import { forceLogout } from './logout.js'
 
 let eventsRegistered = false
+
+// 🧵 Cola por usuario
+const messageQueue = new Map()
 
 export const registerEvents = (client) => {
 
@@ -16,79 +18,74 @@ export const registerEvents = (client) => {
     eventsRegistered = true
     logger.info('📡 Registering WhatsApp events...')
 
-    // 📲 QR generado
-    client.on('qr', async (qr) => {
+    // 📲 QR
+    client.on('qr', (qr) => {
         logger.info('📲 QR received')
-        const last = getLastSessionStatus()
-        if (last === 'READY') {
-            logger.error('❌ Session closed from phone (detected via QR)')
-            await forceLogout();
-            setSessionStatus('QR')
-        }
         saveQr(qr)
         setSessionStatus('QR')
     })
 
-    // 🔐 Autenticado
+    // 🔐 Auth
     client.on('authenticated', () => {
         logger.info('🔐 WhatsApp authenticated')
         setSessionStatus('AUTHENTICATED')
     })
 
-    // ✅ Cliente listo
+    // ✅ Ready
     client.on('ready', () => {
         logger.info('✅ WhatsApp connected and ready')
         setSessionStatus('READY')
     })
 
-    client.on('change_state', (state) => {
-        logger.warn(`🔄 WhatsApp state changed: ${state}`)
-
-        if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
-            logger.error('❌ WhatsApp session unpaired (logout detected)')
-            setSessionStatus('AUTH_FAILURE')
-            forceLogout(client)
-        }
-    })
-
-    // ❌ Sesión inválida / cerrada desde el celular
+    // ❌ Sesión inválida (ÚNICO lugar para destruir)
     client.on('auth_failure', async (msg) => {
         logger.error(`❌ Auth failure: ${msg}`)
         setSessionStatus('AUTH_FAILURE')
-        try {
-            await client.destroy()
-            logger.warn('🧹 Client destroyed after auth failure')
-        } catch (e) {
-            logger.error('Error destroying client after auth failure', e)
-        }
+        await safeDestroy(client)
     })
 
-    // ⚠️ Desconectado
-    client.on('disconnected', (reason) => {
+    // ⚠️ Desconectado real
+    client.on('disconnected', async (reason) => {
         logger.warn(`⚠️ WhatsApp disconnected: ${reason}`)
         setSessionStatus('DISCONNECTED')
-        client.destroy()
+        await safeDestroy(client)
     })
 
-    // 📩 Mensajes entrantes
+    // 📩 Mensajes entrantes (SERIALIZADOS)
     client.on('message', async (message) => {
-        if (message.fromMe) return
-        if (!message.body) return
+        if (message.fromMe || !message.body) return
 
-        try {
-            logger.info(`📩 ${message.from}: "${message.body}"`)
+        const phone = message.from
+        const text = message.body
+        const name = message._data?.notifyName || null
 
-            const name = message._data?.notifyName || null
-
-            await handleIncomingMessage({
-                phone: message.from,
-                text: message.body,
-                name: name || null
-            })
-
-        } catch (err) {
-            logger.error('❌ Error handling incoming message')
-            logger.error(err)
-        }
+        enqueueMessage(phone, async () => {
+            logger.info(`📩 ${phone}: "${text}"`)
+            await handleIncomingMessage({ phone, text, name })
+        })
     })
+}
+
+/* ===========================
+   UTILIDADES
+=========================== */
+
+const enqueueMessage = (phone, task) => {
+    const prev = messageQueue.get(phone) || Promise.resolve()
+
+    const next = prev
+        .then(task)
+        .catch(err => logger.error('❌ Queue error', err))
+
+    messageQueue.set(phone, next)
+}
+
+const safeDestroy = async (client) => {
+    try {
+        logger.warn('🧨 Destroying WhatsApp client safely...')
+        await client.destroy()
+        logger.warn('🧹 Client destroyed safely')
+    } catch (e) {
+        logger.error('❌ Error destroying client', e)
+    }
 }

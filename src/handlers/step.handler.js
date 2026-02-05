@@ -5,7 +5,7 @@ import { updateBookingStatus } from "../repositories/booking.repo.js"
 import { updateUserMetadata } from "../repositories/user.repo.js"
 import { createBooking } from "../services/booking.service.js"
 import { getExperienceDetailForWhatsapp, listExperiencesForWhatsapp } from "../services/experience.service.js"
-import { notifyAdvisorNewBooking } from "../services/notifications.service.js"
+import { notifyAdvisorNewBooking, notifyAdvisorbyClient } from "../services/notifications.service.js"
 import { updateUserStep } from "../services/user.service.js"
 
 export const stepHandlers = {
@@ -85,7 +85,7 @@ export const stepHandlers = {
         }
     },
 
-    [STEPS.BOOKING_PEOPLE]: async ({ user, phone, text, client }) => {
+    [STEPS.BOOKING_PEOPLE]: async ({ user, phone, text }) => {
 
         if (!isValidPeopleNumber(text)) {
             return {
@@ -113,27 +113,29 @@ export const stepHandlers = {
         await updateUserMetadata(phone, { booking: null })
         await updateUserStep(phone, STEPS.END)
 
-        await client.sendMessage(
-            phone,
-            MESSAGES.BOOKING_SUMMARY({
+        await notifyAdvisorNewBooking(booking, user, experience)
+        await updateBookingStatus(booking.id, 'advisor_notified')
+
+        return {
+            response: MESSAGES.BOOKING_SUMMARY({
                 name: user.name,
                 experience,
                 date: bookingDraft.travel_date,
                 people,
                 total,
                 currency: experience.currency
-            })
-        )
-
-        await notifyAdvisorNewBooking(booking, user, experience)
-        await updateBookingStatus(booking.id, 'advisor_notified')
-
-        return { response: null }
+            }),
+            forcedStep: STEPS.END
+        }
     },
 
-    [STEPS.HANDOFF]: async () => ({
-        response: MESSAGES.HANDOFF
-    }),
+    [STEPS.HANDOFF]: async ({ user }) => {
+        await notifyAdvisorbyClient(user)
+        return {
+            response: MESSAGES.HANDOFF,
+            forcedStep: STEPS.END
+        }
+    },
 
     DEFAULT: async () => ({
         response: MESSAGES.INVALID_OPTION
