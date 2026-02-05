@@ -53,16 +53,39 @@ export const registerEvents = (client) => {
 
     // 📩 Mensajes entrantes (SERIALIZADOS)
     client.on('message', async (message) => {
+
+         // ❌ ignorar mensajes propios
+        if (message.fromMe) return
+
+        // ❌ ignorar estados
+        if (message.from === 'status@broadcast') return
+
+        // ❌ ignorar grupos
+        if (message.from.endsWith('@g.us')) return
+
+        // ❌ ignorar mensajes sin texto
+        if (!message.body) return
+
         if (message.fromMe || !message.body) return
 
-        const phone = message.from
-        const text = message.body
-        const name = message._data?.notifyName || null
+        try {
+            
+            logger.info(`📩 ${message.from}: "${message.body}"`)
 
-        enqueueMessage(phone, async () => {
-            logger.info(`📩 ${phone}: "${text}"`)
-            await handleIncomingMessage({ phone, text, name })
-        })
+            const phone = message.from
+            const text = message.body
+            const name = message._data?.notifyName || null
+
+            enqueueMessage(phone, async () => {
+                logger.info(`📩 ${phone}: "${text}"`)
+                await handleIncomingMessage({ phone, text, name })
+            })
+
+        } catch (error) {
+            logger.error('❌ Error handling incoming message')
+            logger.error(err)
+        }
+        
     })
 }
 
