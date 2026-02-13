@@ -9,7 +9,12 @@ const GREETINGS = [
     'consulta',
     'info',
     'informacion',
-    'información'
+    'información',
+    'Deseo más información',
+    'Quiero hacer una reserva',
+    'reservar',
+    'tours',
+    'Quiero vivir la experiencia'
 ]
 
 export const isGreetingIntent = (text = '') => {

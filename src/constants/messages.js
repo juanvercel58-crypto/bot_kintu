@@ -13,7 +13,7 @@ Viajar con nosotros es reconectar contigo mismo 🌿`,
 Por favor responde con una de las opciones del menú.`,
 
   HANDOFF: `Perfecto 🙌  
-Un asesor humano continuará contigo en breve.`,
+Un asesor de *Kintu* continuará contigo en breve.`,
 
   // =========================
   // 📌 RESERVAS / BOOKING

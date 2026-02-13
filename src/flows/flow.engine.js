@@ -7,6 +7,7 @@ import { getUser, createUser, updateUserStep } from '../services/user.service.js
 import { stepHandlers } from '../handlers/step.handler.js'
 import { isGreetingIntent } from './flow.intent.js'
 import { notifyAdvisorbyClient } from '../services/notifications.service.js'
+import { isHumanEntryMessage, isHumanExitMessage } from './flow.handoff.detector.js'
 
 const normalizeText = (text = '') => text.toLowerCase().trim()
 
@@ -19,6 +20,20 @@ export const handleIncomingMessage = async ({ phone, text, name }) => {
     const client = getWhatsAppClient()
     const normalizedText = normalizeText(text)
 
+    if (isHumanEntryMessage(text)) {
+        handoffChats.add(phone)
+        logger.info(`🛑 Human advisor detected. Bot stopped for ${phone}`);
+        return
+    }
+
+    if (isHumanExitMessage(text)) {
+        if (handoffChats.has(phone)) {
+            handoffChats.delete(phone)
+            logger.info(`♻️ Human exit detected. Bot reactivated for ${phone}`)
+        }
+        return
+    }
+
     // ❌ Si el chat ya está en HANDOFF, no procesar
     if (handoffChats.has(phone)) {
         logger.info(`🤖 Bot stopped for ${phone} (HANDOFF active)`)
@@ -26,11 +41,7 @@ export const handleIncomingMessage = async ({ phone, text, name }) => {
     }
 
     // ❌ Evitar doble procesamiento
-    if (activeFlows.get(phone)) {
-        logger.info(`⏳ Flow already running for ${phone}, skipping message: "${text}"`)
-        return
-    }
-
+    if (activeFlows.get(phone)) return;
     activeFlows.set(phone, true)
 
     try {

@@ -2,11 +2,13 @@ import { setSessionStatus } from './session.js'
 import { saveQr } from './qr.js'
 import { logger } from '../utils/logger.js'
 import { handleIncomingMessage } from '../flows/flow.engine.js'
+import { isHumanEntryMessage, isHumanExitMessage } from '../flows/flow.handoff.detector.js'
 
 let eventsRegistered = false
 
 // 🧵 Cola por usuario
 const messageQueue = new Map()
+const handoffChats = new Set()
 
 export const registerEvents = (client) => {
 
@@ -54,27 +56,26 @@ export const registerEvents = (client) => {
     // 📩 Mensajes entrantes (SERIALIZADOS)
     client.on('message', async (message) => {
 
-         // ❌ ignorar mensajes propios
-        if (message.fromMe) return
-
-        // ❌ ignorar estados
+        // ❌ ignorar mensajes sin texto || grupos || estados
+        if (!message.body) return
         if (message.from === 'status@broadcast') return
-
-        // ❌ ignorar grupos
         if (message.from.endsWith('@g.us')) return
 
-        // ❌ ignorar mensajes sin texto
-        if (!message.body) return
-
-        if (message.fromMe || !message.body) return
 
         try {
-            
-            logger.info(`📩 ${message.from}: "${message.body}"`)
 
-            const phone = message.from
+            //const phone = message.from
+            const phone = message.fromMe ? message.to : message.from
             const text = message.body
             const name = message._data?.notifyName || null
+
+            logger.info(`📩 ${phone} (${message.fromMe ? 'HUMAN' : 'CLIENT'}): "${text}"`)
+
+            // 🛑 Si el humano está atendiendo → el bot NO responde
+            if (handoffChats.has(phone)) {
+                logger.info(`🤖 Bot paused for ${phone}`)
+                return
+            }
 
             enqueueMessage(phone, async () => {
                 logger.info(`📩 ${phone}: "${text}"`)
@@ -83,9 +84,34 @@ export const registerEvents = (client) => {
 
         } catch (error) {
             logger.error('❌ Error handling incoming message')
-            logger.error(err)
+            logger.error(error)
         }
         
+    })
+
+    client.on('message_create', (message) => {
+
+        if (!message.fromMe) return
+        if (!message.body) return
+
+        const phone = message.to
+        const text = message.body
+
+        logger.info(`🧑‍💼 HUMAN ${phone}: "${text}"`)
+
+        // 👋 ENTRADA HUMANA
+        if (isHumanEntryMessage(text)) {
+            handoffChats.add(phone)
+            logger.info(`🛑 HANDOFF ACTIVATED for ${phone}`)
+            return
+        }
+
+        // 👋 SALIDA HUMANA
+        if (isHumanExitMessage(text)) {
+            handoffChats.delete(phone)
+            logger.info(`♻️ HANDOFF ENDED for ${phone}`)
+            return
+        }
     })
 }
 
